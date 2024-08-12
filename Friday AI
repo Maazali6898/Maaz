@@ -243,8 +243,8 @@ def open_instagram():
 # Function to perform Google search using Custom Search API
 def google_search(query):
     try:
-        API_KEY = 'AIzaSyApkOKVsQMlTcY2nnMlW_6rKn5s8qZVL7k'
-        CSE_ID = "e6015266e8e684452"
+        API_KEY = 'YOUR KEY'
+        CSE_ID = "YOUR KEY"
         url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={API_KEY}&cx={CSE_ID}"
         response = requests.get(url)
         data = response.json()
