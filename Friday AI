@@ -1,0 +1,277 @@
+import pyttsx3
+import speech_recognition as sr
+from datetime import datetime
+import os
+import webbrowser
+import requests
+from bs4 import BeautifulSoup
+import psutil
+import wikipedia
+
+# Initialize the text-to-speech engine
+engine = pyttsx3.init()
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[1].id)  # Zira voice
+engine.setProperty('rate', 150)  # Adjust speaking speed
+
+# Speak the provided text using the text-to-speech engine
+def speak(text):
+    print(f"\n==> Friday: {text}\n")  # Print assistant's response
+    engine.say(text)
+    engine.runAndWait()
+
+# Print user's input for clarity
+def print_user_input(text):
+    print(f"\n==> Boss: {text}\n")
+
+# Listen to user's input via microphone
+def listen():
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Listening...")
+        recognizer.adjust_for_ambient_noise(source)  # Adjust for ambient noise
+        audio = recognizer.listen(source)
+    return audio
+
+# Recognize the speech from the audio input
+def recognize(audio):
+    recognizer = sr.Recognizer()
+    try:
+        print("Recognizing...")
+        query = recognizer.recognize_google(audio, language="en")
+        print_user_input(query)  # Print user's input
+        return query.lower()
+    except sr.UnknownValueError:
+        speak("Sorry, I couldn't understand what you said.")
+        return None
+    except sr.RequestError:
+        speak("Sorry, I'm facing some difficulties. Please try again later.")
+        return None
+
+# Main execution function to handle various commands
+def main_execution(query):
+    if "hello" in query:
+        speak("Welcome back, Boss!")
+    elif any(exit_command in query for exit_command in ["bye", "goodbye", "exit"]):
+        speak("Okay Boss, have a nice day!")
+        return False
+    elif "time" in query:
+        current_time = datetime.now().strftime("%H:%M")
+        speak(f"The current time is {current_time}.")
+    elif "start writing" in query:
+        speak("Sure, do you want to open Notepad or WordPad?")
+        app_choice = listen_for_text()
+        if app_choice:
+            if 'notepad' in app_choice:
+                text = listen_for_text()
+                if text:
+                    write_to_notepad(text)
+                    speak("I have written it down in Notepad.")
+                    open_application('notepad')
+            elif 'wordpad' in app_choice:
+                text = listen_for_text()
+                if text:
+                    write_to_wordpad(text)
+                    speak("I have written it down in WordPad.")
+                    open_application('wordpad')
+            else:
+                speak("Sorry, I didn't catch that. Please say Notepad or WordPad.")
+    elif 'open instagram' in query:
+        speak("Opening Instagram.")
+        open_instagram()
+    elif 'close instagram' in query:
+        close_application('chrome')
+        speak("Closing Instagram.")
+    elif 'open google chrome' in query:
+        os.startfile("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe")
+        speak("Opening Google Chrome.")
+    elif 'close google chrome' in query:
+        close_application('chrome')
+        speak("Closing Google Chrome.")
+    elif 'open facebook' in query:
+        webbrowser.open('https://www.facebook.com/')
+        speak("Opening Facebook.")
+    elif 'close facebook' in query:
+        close_application('chrome')
+        speak("Closing Facebook.")
+    elif 'open google maps' in query:
+        webbrowser.open('https://www.google.com/maps/')
+        speak("Opening Google Maps.")
+    elif 'close google maps' in query:
+        close_application('chrome')
+        speak("Closing Google Maps.")
+    elif 'open youtube' in query:
+        speak("What do you want to search on YouTube?")
+        search_query = listen_for_text()
+        if search_query:
+            webbrowser.open(f"https://www.youtube.com/results?search_query={search_query}")
+            speak(f"Searching YouTube for {search_query}.")
+    elif 'close youtube' in query:
+        close_application('chrome')
+        speak("Closing YouTube.")
+    elif 'temperature' in query:
+        Temp()  # Call the temperature function here
+    elif 'wikipedia' in query:
+        search_query = query.replace('wikipedia', '').strip()
+        try:
+            speak(f"Searching Wikipedia for {search_query}.")
+            summary = wikipedia.summary(search_query, sentences=2)
+            speak(summary)
+        except wikipedia.exceptions.PageError:
+            speak("Sorry, I couldn't find any relevant information on Wikipedia.")
+        except wikipedia.exceptions.DisambiguationError as e:
+            options = e.options[:5]  # Limiting to the first 5 options for simplicity
+            speak("There are multiple options for this search query. Please choose one:")
+            for i, option in enumerate(options):
+                speak(f"Option {i+1}: {option}")
+            speak("Please say the number of your choice.")
+            choice = listen_for_text()
+            try:
+                choice_index = int(choice) - 1
+                if 0 <= choice_index < len(options):
+                    summary = wikipedia.summary(options[choice_index], sentences=2)
+                    speak(summary)
+                else:
+                    speak("Invalid choice. Please try again.")
+            except ValueError:
+                speak("Invalid choice. Please say the number of your choice.")
+        except Exception as e:
+            speak("Sorry, I couldn't fetch information from Wikipedia right now.")
+    elif 'google search' in query:
+        search_query = query.replace('google search', '').strip()
+        result = google_search(search_query)
+        speak(result)
+    elif 'how to' in query:
+        speak("Getting information")
+        speak("processing")
+        search_query = query.replace("how to", "").strip()
+        result = google_search(f"how to {search_query}")
+        speak(result)
+
+    elif 'my location' in query:
+        speak("Ok Sir , Wait A Second!")
+        webbrowser.open('https://www.google.com/maps/place/Huzaifa+Masjid/@33.7434568,73.1937967,20.75z/data=!4m6!3m5!1s0x38dfc3cd59f73333:0x23bb56c72daf1ef5!8m2!3d33.7436991!4d73.1940812!16s%2Fg%2F11c6qk_7k9?entry=ttu')
+
+    elif 'website' in query:
+        speak("Ok Sir , Launching.....")
+        query = query.replace("friday","")
+        query = query.replace("website","")
+        query = query.replace(" ","")
+        web1 = query.replace("open","")
+        web2 = 'https://www.' + web1 + '.com'
+        webbrowser.open(web2)
+        speak("Launched!")
+
+    else:
+        speak("Sorry, I couldn't find any relevant information.")
+    return True
+
+# Close an application by name
+def close_application(app_name):
+    for process in psutil.process_iter(['pid', 'name']):
+        if app_name.lower() in process.info['name'].lower():
+            try:
+                process.terminate()  # Attempt to gracefully terminate the process
+                process.wait(timeout=3)  # Wait for the process to terminate
+            except psutil.NoSuchProcess:
+                continue
+            except psutil.AccessDenied:
+                os.kill(process.info['pid'], 9)  # Forcefully kill the process if termination fails
+
+# Open an application by name, with checking if it's already running
+def open_application(app_name):
+    # Check if the application is already running
+    for process in psutil.process_iter(['pid', 'name']):
+        if app_name.lower() in process.info['name'].lower():
+            speak(f"{app_name.capitalize()} is already running.")
+            return
+    
+    # If not running, open the application
+    if app_name.lower() == 'notepad':
+        os.system("notepad.exe note.txt")
+    elif app_name.lower() == 'wordpad':
+        os.system("write.exe note.txt")
+
+# Listen for text input
+def listen_for_text():
+    audio = listen()
+    text = recognize(audio)
+    return text
+
+# Write the text to Notepad
+def write_to_notepad(text):
+    with open("note.txt", "w") as file:
+        file.write(text)
+
+# Write the text to WordPad (temporarily saved in Notepad and opened in WordPad for simplicity)
+def write_to_wordpad(text):
+    with open("note.txt", "w") as file:
+        file.write(text)
+
+# Fetch and speak the temperature information
+def Temp():
+    try:
+        speak("Sure, checking the temperature. Please wait.")
+        search = "temperature in Islamabad"  # Default location
+        url = f"https://www.google.com/search?q={search}"
+        r = requests.get(url)
+        data = BeautifulSoup(r.text, "html.parser")
+        temperature = data.find("div", class_="BNeawe").text.strip()
+        speak(f"The temperature in Islamabad is {temperature}")
+
+        speak("Do you want to know the temperature of another place?")
+        next_query = listen_for_text()
+
+        if 'yes' in next_query:
+            speak("Which place, Boss?")
+            place = listen_for_text()
+            search = f"temperature in {place}"
+            url = f"https://www.google.com/search?q={search}"
+            r = requests.get(url)
+            data = BeautifulSoup(r.text, "html.parser")
+            temperature = data.find("div", class_="BNeawe").text.strip()
+            speak(f"The temperature in {place} is {temperature}.")
+        elif 'no' in next_query:
+            speak("Okay, Boss. If you need any help, just call me.")
+    except Exception as e:
+        speak("Sorry, I couldn't fetch the temperature right now.")
+
+# Function to open Instagram in Google Chrome
+def open_instagram():
+    webbrowser.open('https://www.instagram.com/')
+
+# Function to perform Google search using Custom Search API
+def google_search(query):
+    try:
+        API_KEY = 'AIzaSyApkOKVsQMlTcY2nnMlW_6rKn5s8qZVL7k'
+        CSE_ID = "e6015266e8e684452"
+        url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={API_KEY}&cx={CSE_ID}"
+        response = requests.get(url)
+        data = response.json()
+        if 'items' in data and len(data['items']) > 0:
+            result = data['items'][0]['snippet']  # Extract the snippet of the first search result
+            return result
+        else:
+            return "Sorry, I couldn't find any relevant information."
+    except requests.exceptions.RequestException as e:
+        print("Request Error:", e)
+        return "Sorry, I'm facing some difficulties. Please try again later."
+    except KeyError as e:
+        print("KeyError:", e)
+        return "Sorry, I couldn't parse the search results."
+    except Exception as e:
+        print("Error:", e)
+        return "Sorry, something went wrong during the search."
+
+# Main function to run the assistant
+if __name__ == "__main__":
+    speak("Hello Boss")
+    current_time = datetime.now().strftime("%H:%M")
+    speak(f"The current time is {current_time}.")
+
+    while True:
+        audio = listen()
+        query = recognize(audio)
+        if query:
+            if not main_execution(query):
+                break
